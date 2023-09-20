@@ -30,6 +30,9 @@ def recent_data():
     driver.maximize_window()
     driver.implicitly_wait(time_to_wait=5)
 
+    due_date = 20220801
+
+
     while True:
         rows = driver.find_elements(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/table/tbody/tr')
 
@@ -40,26 +43,33 @@ def recent_data():
             title = columns[4].text
             platform = columns[6].text
             check = 'O' if platform == "Python" or platform == "payload" else ''
+            date_time = int(date.replace("-",""))
 
-            link = columns[4].find_element(By.TAG_NAME, 'a')
-            link.click()
-            #eb_id, cve, code는 title 누르고 들어가서 내용 따로 크롤링해서 다시 뒤로가기해서 다음 내용 뽑게
+            if due_date < date_time:
+                link = columns[4].find_element(By.TAG_NAME, 'a')
+                link.click()
 
-            edb_id_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[1]/h6')
-            edb_id = edb_id_element.text
-            cve_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[2]/h6')
-            cve = cve_element.text
-            type_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[2]/div/div[1]/div/div/div/div[2]/h6/a')
-            type = type_element.text
-            code_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[2]/div[1]/div/pre/code')
-            code = code_element.text
+                WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[1]/h6')))
+
+                #eb_id, cve, code는 title 누르고 들어가서 내용 따로 크롤링해서 다시 뒤로가기해서 다음 내용 뽑게
+
+                edb_id_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[1]/h6')
+                edb_id = edb_id_element.text
+                cve_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[2]/h6')
+                cve = cve_element.text
+                type_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[2]/div/div[1]/div/div/div/div[2]/h6/a')
+                type = type_element.text
+                code_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[2]/div[1]/div/pre/code')
+                code = code_element.text
             
-            try:
-                new_data.append([date, title, edb_id, cve, type, code, platform, check])
-                driver.back()
+                try:
+                    new_data.append([date, title, edb_id, cve, type, code, platform, check])
+                    driver.back()
 
-            except Exception as e:
-                driver.back()
+                except Exception as e:
+                    driver.back()
+            else:
+                break
 
         next_button = driver.find_element(By.XPATH, '//*[@id="exploits-table_next"]/a')
         if 'disabled' in next_button.get_attribute('class'):
@@ -99,3 +109,9 @@ def save_updated_data(updated_data):
         print("New updated data" )
     else:
         print("No updated data")
+
+data = 'previous_data.xlsx'
+previous_data_list = previous_data(data)
+new_data_list = recent_data()
+updated_data_list = compare(previous_data_list, new_data_list)
+save_updated_data(updated_data_list)
