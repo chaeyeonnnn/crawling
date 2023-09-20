@@ -110,7 +110,7 @@ def save_updated_data(updated_data):
     else:
         print("No updated data")
 
-data = 'previous_data.xlsx'
+data = 'exploit_data.xlsx'
 previous_data_list = previous_data(data)
 new_data_list = recent_data()
 updated_data_list = compare(previous_data_list, new_data_list)
