@@ -1,3 +1,102 @@
+
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException
+from time import sleep
+import logging
+import datetime
+import time
+import openpyxl
+
+def get_data():
+    url = 'https://www.exploit-db.com/'
+    s = Service('/opt/homebrew/bin/chromedriver')
+
+    # Chrome 드라이버 초기화
+    driver = webdriver.Chrome(service=s)
+    
+    driver.get(url)
+    driver.maximize_window()
+    driver.implicitly_wait(time_to_wait=5)
+
+
+    # 엑셀 파일 만들고
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(["DATE", "TITLE", "EDB-ID", "CVE", "TYPE", "CODE", "CATEGORY", "CHECK"])
+    due_date = 20220801
+
+    while True:
+        try:
+            rows = driver.find_elements(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/table/tbody/tr')
+            # 여기에서 이제 나와있는 목록들 내용 다 뽑을 수 있음
+
+            for i in range(len(rows)):
+                try:
+                    row = rows[i]
+                    columns = row.find_elements(By.TAG_NAME, 'td')
+                    date = columns[0].text
+                    title = columns[4].text
+                    platform = columns[6].text
+                    check = 'O' if platform == "Python" or platform == "payload" else ''
+                    date_time = int(date.replace("-",""))
+
+                    if due_date < date_time:
+                        link = columns[4].find_element(By.TAG_NAME, 'a')
+                        link.click()
+
+                        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[1]/h6')))
+
+                        # EDB-ID, CVE, CODE는 title 누르고 들어가서 내용 따로 크롤링해서 다시 뒤로가기해서 다음 내용 뽑게
+                        edb_id_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[1]/h6')
+                        edb_id = edb_id_element.text
+                        cve_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[2]/h6')
+                        cve = cve_element.text
+                        type_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[2]/div/div[1]/div/div/div/div[2]/h6/a')
+                        type = type_element.text
+                        code_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[2]/div[1]/div/pre/code')
+                        code = code_element.text
+                        
+                        # 데이터를 엑셀에 추가해주기
+                        ws.append([date, title, edb_id, cve, type, code, platform, check])
+                        driver.back()
+                    
+                    else:
+                        driver.quit()
+                        
+                except Exception as e:
+                    logging.error(f'Exception occurred: {e}')
+                    driver.back()
+                    link = columns[4].find_element(By.TAG_NAME, 'a')
+                    link.click()
+                    continue
+
+            try:
+                next_button = driver.find_element(By.XPATH, '//*[@id="exploits-table_next"]/a')
+                if 'disabled' in next_button.get_attribute('class'):
+                    break
+                else:
+                    driver.execute_script("arguments[0].scrollIntoView();", next_button)
+                    next_button.click()
+                    driver.execute_script("window.scrollTo(0, 0);")
+                    time.sleep(10)
+
+                # 다음 페이지로 넘겨주다가 끝까지 가면 크롤링 그만하도록
+
+            except NoSuchElementException:
+                break
+
+        # 엑셀 파일로 저장
+        finally:
+            wb.save("exploit_data.xlsx")
+            driver.quit()
+
+get_data()
+
+
 '''
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -723,101 +822,3 @@ while True:
 
 driver.quit()
 '''
-
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchElementException
-from time import sleep
-import logging
-import datetime
-import time
-import openpyxl
-
-def get_data():
-    url = 'https://www.exploit-db.com/'
-    s = Service('/opt/homebrew/bin/chromedriver')
-
-    # Chrome 드라이버 초기화
-    driver = webdriver.Chrome(service=s)
-    
-    driver.get(url)
-    driver.maximize_window()
-    driver.implicitly_wait(time_to_wait=5)
-
-
-    # 엑셀 파일 만들고
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.append(["DATE", "TITLE", "EDB-ID", "CVE", "TYPE", "CODE", "CATEGORY", "CHECK"])
-    due_date = 20220801
-
-    while True:
-        try:
-            rows = driver.find_elements(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/table/tbody/tr')
-            # 여기에서 이제 나와있는 목록들 내용 다 뽑을 수 있음
-
-            for i in range(len(rows)):
-                try:
-                    row = rows[i]
-                    columns = row.find_elements(By.TAG_NAME, 'td')
-                    date = columns[0].text
-                    title = columns[4].text
-                    platform = columns[6].text
-                    check = 'O' if platform == "Python" or platform == "payload" else ''
-                    date_time = int(date.replace("-",""))
-
-                    if due_date < date_time:
-                        link = columns[4].find_element(By.TAG_NAME, 'a')
-                        link.click()
-
-                        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[1]/h6')))
-
-                        # EDB-ID, CVE, CODE는 title 누르고 들어가서 내용 따로 크롤링해서 다시 뒤로가기해서 다음 내용 뽑게
-                        edb_id_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[1]/h6')
-                        edb_id = edb_id_element.text
-                        cve_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[2]/h6')
-                        cve = cve_element.text
-                        type_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[2]/div/div[1]/div/div/div/div[2]/h6/a')
-                        type = type_element.text
-                        code_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[2]/div[1]/div/pre/code')
-                        code = code_element.text
-                        
-                        # 데이터를 엑셀에 추가해주기
-                        ws.append([date, title, edb_id, cve, type, code, platform, check])
-                        driver.back()
-                    
-                    else:
-                        driver.quit()
-                        
-                except Exception as e:
-                    logging.error(f'Exception occurred: {e}')
-                    driver.back()
-                    link = columns[4].find_element(By.TAG_NAME, 'a')
-                    link.click()
-                    continue
-
-            try:
-                next_button = driver.find_element(By.XPATH, '//*[@id="exploits-table_next"]/a')
-                if 'disabled' in next_button.get_attribute('class'):
-                    break
-                else:
-                    driver.execute_script("arguments[0].scrollIntoView();", next_button)
-                    next_button.click()
-                    driver.execute_script("window.scrollTo(0, 0);")
-                    time.sleep(10)
-
-                # 다음 페이지로 넘겨주다가 끝까지 가면 크롤링 그만하도록
-
-            except NoSuchElementException:
-                break
-
-        # 엑셀 파일로 저장
-        finally:
-            wb.save("exploit_data.xlsx")
-            driver.quit()
-
-if __name__ == "__main__":
-    get_data()
