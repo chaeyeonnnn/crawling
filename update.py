@@ -70,6 +70,7 @@ def recent_data():
                     driver.back()
             else:
                 break
+            #날짜 지났을 때 나오고 next누르고 있음 아예 종료하게 수정
 
         next_button = driver.find_element(By.XPATH, '//*[@id="exploits-table_next"]/a')
         if 'disabled' in next_button.get_attribute('class'):
