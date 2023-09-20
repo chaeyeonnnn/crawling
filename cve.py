@@ -1,5 +1,75 @@
+
+import requests
+import os
+import time
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from selenium.common.exceptions import StaleElementReferenceException
+import pandas as pd
+import json
+
+# Chrome 웹 드라이버를 실행
+s = Service('/opt/homebrew/bin/chromedriver')
+driver = webdriver.Chrome(service=s)
+driver.maximize_window()
+time.sleep(10)
+
+# GitHub API 엔드포인트 및 토큰 설정
+base_url = 'https://github.com/CVEProject/cvelistV5/tree/main/cves'
+token = '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'
+
+# 다운로드할 연도
+year = 2023
+
+# 결과를 저장할 디렉토리 생성
+if not os.path.exists('CVE_files'):
+    os.makedirs('CVE_files')
+
+year_url = f'{base_url}{year:04d}'
+headers = {'Authorization': f'token {token}'}
+
+# 해당 연도의 폴더 내 파일 목록 가져오기
+response = requests.get(year_url, headers=headers)
+
+try:
+    data = response.json()
+    result_df = pd.DataFrame(columns=['File Name', 'Content'])
+
+    for item in data:
+        if item['type'] == 'file':
+            # 파일 URL 생성
+            file_url = item['download_url']
+            file_name = item['name']
+
+            # 파일 다운로드
+            response = requests.get(file_url, headers=headers)
+
+            try:
+                json_data = json.loads(response.text)  # 수정: response를 text로 변환
+            except json.JSONDecodeError as e:
+                print(f"JSON 디코딩 오류: {str(e)}")
+                continue
+
+            cve_number = json_data["CVE_data_meta"]["ID"]
+            csv_file_name = os.path.join("CVE_files", f"CVE-{year}-{cve_number}.csv")  # 수정: 확장자 변경
+            df = pd.json_normalize(json_data)
+
+            # CSV 파일로 저장
+            df.to_csv("cve.csv", encoding='utf-8-sig') 
+
+except json.decoder.JSONDecodeError:
+    # JSON 디코딩 오류 처리
+    print("JSON decoding error. Response content:")
+    print(response.text)
+
+# 크롬 드라이버 종료
+driver.quit()
+
+
+
 '''
-  # 페이지가 로드될 때까지 대기 (필요에 따라 조절)
+  # 페이지가 로드될 때까지 대기
 
 
             if response.status_code == 200:
@@ -63,12 +133,10 @@ from selenium.webdriver.chrome.service import Service
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from bs4 import BeautifulSoup
 
-# Chrome 웹 드라이버를 실행
 s = Service('/opt/homebrew/bin/chromedriver')
 driver = webdriver.Chrome(service=s)
 driver.maximize_window()
 
-# GitHub 사이트로 이동
 github_url = 'https://github.com/CVEProject/cvelistV5/tree/main/cves/2023'
 driver.get(github_url)
 
@@ -117,7 +185,7 @@ while True:
         # "Load more" 버튼이 있는지 확인하여 클릭
         load_more_button = driver.find_element(By.PARTIAL_LINK_TEXT, 'Load more')
         load_more_button.click()
-        time.sleep(2)  # 페이지 로딩을 기다림
+        time.sleep(2)  
         
     except NoSuchElementException:
         print("더 이상 파일이 없거나 페이지 로딩이 완료되었습니다.")
@@ -632,71 +700,3 @@ result_df = pd.DataFrame(file_data_list)
 # CSV 파일로 저장
 result_df.to_csv("cve_data.csv", index=False, encoding='utf-8-sig')
 '''
-
-
-import requests
-import os
-import time
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.common.exceptions import StaleElementReferenceException
-import pandas as pd
-import json
-
-# Chrome 웹 드라이버를 실행
-s = Service('/opt/homebrew/bin/chromedriver')
-driver = webdriver.Chrome(service=s)
-driver.maximize_window()
-time.sleep(10)
-
-# GitHub API 엔드포인트 및 토큰 설정
-base_url = 'https://github.com/CVEProject/cvelistV5/tree/main/cves'
-token = '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'
-
-# 다운로드할 연도 설정
-year = 2023
-
-# 결과를 저장할 디렉토리 생성
-if not os.path.exists('CVE_files'):
-    os.makedirs('CVE_files')
-
-year_url = f'{base_url}{year:04d}'
-headers = {'Authorization': f'token {token}'}
-
-# 해당 연도의 폴더 내 파일 목록 가져오기
-response = requests.get(year_url, headers=headers)
-
-try:
-    data = response.json()
-    result_df = pd.DataFrame(columns=['File Name', 'Content'])
-
-    for item in data:
-        if item['type'] == 'file':
-            # 파일 URL 생성
-            file_url = item['download_url']
-            file_name = item['name']
-
-            # 파일 다운로드
-            response = requests.get(file_url, headers=headers)
-
-            try:
-                json_data = json.loads(response.text)  # 수정: response를 text로 변환
-            except json.JSONDecodeError as e:
-                print(f"JSON 디코딩 오류: {str(e)}")
-                continue
-
-            cve_number = json_data["CVE_data_meta"]["ID"]
-            csv_file_name = os.path.join("CVE_files", f"CVE-{year}-{cve_number}.csv")  # 수정: 확장자 변경
-            df = pd.json_normalize(json_data)
-
-            # CSV 파일로 저장
-            df.to_csv("cve.csv", encoding='utf-8-sig') 
-
-except json.decoder.JSONDecodeError:
-    # JSON 디코딩 오류 처리
-    print("JSON decoding error. Response content:")
-    print(response.text)
-
-# 크롬 드라이버 종료
-driver.quit()
