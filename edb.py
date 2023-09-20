@@ -810,8 +810,6 @@ def get_data():
                     driver.execute_script("window.scrollTo(0, 0);")
                     time.sleep(10)
 
-
-
                 # 다음 페이지로 넘겨주다가 끝까지 가면 크롤링 그만하도록
 
             except NoSuchElementException:
