@@ -790,8 +790,7 @@ def get_data():
                         driver.back()
                     
                     else:
-                        # 8월 1일보다 이전 자료가 나오면 크롤링 중단
-                        break
+                        driver.quit()
                         
                 except Exception as e:
                     logging.error(f'Exception occurred: {e}')
