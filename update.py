@@ -1,3 +1,5 @@
+# 기존에 저장되어있던 파일과 실시간으로 크롤링한 데이터를 비교하여 업데이트된 데이터만 따로 파일로 새로 저장하는 코드 
+
 import openpyxl
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -30,7 +32,7 @@ def recent_data():
     driver.maximize_window()
     driver.implicitly_wait(time_to_wait=5)
 
-    due_date = 20220801
+    due_date = 20230901
 
 
     while True:
@@ -69,7 +71,6 @@ def recent_data():
                 except Exception as e:
                     driver.back()
             else:
-                #break #날짜 지났을 때 나오고 next누르고 있음 아예 종료하게 수정
                 driver.quit()
 
         next_button = driver.find_element(By.XPATH, '//*[@id="exploits-table_next"]/a')
@@ -91,7 +92,7 @@ def compare(previous_data, new_data):
         for prev_row in previous_data:
             if new_row == prev_row:  # 코드 열 비교
                 found = True
-                break
+                continue
         if not found:
             updated_data.append(new_row)
     return updated_data
@@ -108,6 +109,7 @@ def save_updated_data(updated_data):
             ws.append(row)
         wb.save("updated_data.xlsx")
         print("New updated data" )
+
     else:
         print("No updated data")
 
@@ -116,3 +118,6 @@ previous_data_list = previous_data(data)
 new_data_list = recent_data()
 updated_data_list = compare(previous_data_list, new_data_list)
 save_updated_data(updated_data_list)
+
+# urllib3.exceptions.MaxRetryError 왜 나는지 확인해보고 
+# 
