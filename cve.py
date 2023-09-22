@@ -57,6 +57,8 @@ try:
 
             # CSV 파일로 저장
             df.to_csv("cve.csv", encoding='utf-8-sig') 
+            #df.to_csv("cve.csv", encoding='utf-8') 
+
 
 except json.decoder.JSONDecodeError:
     print("JSON decoding error")
