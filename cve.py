@@ -69,6 +69,92 @@ driver.quit()
 
 
 '''
+
+# step 1
+#https://github.com/CVEProject/cvelistV5/tree/main/cves/2023
+#https://github.com/CVEProject/cvelistV5/tree/main/cves/2023/0xxx
+#https://github.com/CVEProject/cvelistV5/blob/main/cves/2023/0xxx/CVE-2023-0001.json
+# 이 라인대로 타고 타고 들어가서 크롤링을 해야함
+
+# step 2
+#//*[@id="folder-row-1"]/td[2]/div/div/h3/div
+#//*[@id="folder-row-5"]/td[2]/div/div/h3/div
+# 이 라인대로 0xxx 1xxx 20xxx ... 이렇게 눌러서 크롤링을 해야됨 
+
+#이게 차례대로 0001, 0002, 0003.json 파일의 xpath
+#//*[@id=":r2k:"]/span/span
+#//*[@id=":r2n:"]/span/span
+#//*[@id=":r2q:"]/span/span
+
+# step 3
+#//*[@id="repos-sticky-header"]/div[1]/div[2]/div[2]/div[1]/div[1]/span/button/svg
+# 이게 파일 다운로드 버튼 XPATH 
+# //*[@id="repo-content-pjax-container"]/react-app/div/div/div[1]/div/div/main/div[2]/div/div[1]/div/div[1]/div/div[1]/h2/button[1]/span
+# 이게 뒤로가기 버튼
+
+
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.common.by import By
+import time
+from selenium.common.exceptions import StaleElementReferenceException
+
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
+
+import openpyxl
+
+wb = openpyxl.Workbook()
+ws = wb.active
+
+s = Service('/opt/homebrew/bin/chromedriver')
+driver = webdriver.Chrome(service=s)
+
+
+url = 'https://github.com/CVEProject/cvelistV5/tree/main/cves'
+
+driver.get(url)
+driver.maximize_window()
+driver.implicitly_wait(time_to_wait=5)
+
+year_element = driver.find_element(By.XPATH, '//*[@id="folder-row-25"]/td[2]/div/div/h3/div/a')
+year_element.click()
+try:
+    add_element = driver.find_element(By.XPATH, '//*[@id="folder-row-1"]/td[2]/div/div/h3/div/a')
+    add_element.click()
+except StaleElementReferenceException:
+    # 예외 처리: 요소가 더 이상 사용 가능하지 않을 때 다시 찾기
+    add_element = driver.find_element(By.XPATH, '//*[@id="folder-row-1"]/td[2]/div/div/h3/div/a')  # 다시 찾기
+    add_element.click()
+
+
+while True:
+    try:
+        path = """//*[@id="repo-content-pjax-container"]/react-app/div/div/div[1]/div/div/main/div[2]/div/div[3]"""
+        rows = driver.find_elements(By.XPATH,path)
+        for i in range(len(rows)):
+            row = rows[i]
+            # 페이지 소스 가져오기
+            page_source = driver.page_source
+
+            # 파일 이름과 내용 엑셀에 추가
+            ws.append([f'CVE_data_{i}', page_source])
+            print(f"Data saved for CVE_data_{i}")
+            
+            back_element = '//*[@id="repo-content-pjax-container"]/react-app/div/div/div[1]/div/div/main/div[2]/div/div[1]/div/div[1]/div/div[1]/h2/button[1]/span'
+            back_element.click()
+                time.sleep(2)
+                i += 1
+            except NoSuchElementException:
+                pass
+
+    except StaleElementReferenceException:
+        break
+
+
+wb.save("cve_data.xlsx")
+driver.quit()
+
   # 페이지가 로드될 때까지 대기
 
 
@@ -98,30 +184,6 @@ from urllib import request
 from urllib.error import HTTPError
 from bs4 import BeautifulSoup
 import requests
-
-# step 1
-#https://github.com/CVEProject/cvelistV5/tree/main/cves/2023
-#https://github.com/CVEProject/cvelistV5/tree/main/cves/2023/0xxx
-#https://github.com/CVEProject/cvelistV5/blob/main/cves/2023/0xxx/CVE-2023-0001.json
-# 이 라인대로 타고 타고 들어가서 크롤링을 해야함
-
-# step 2
-#//*[@id="folder-row-1"]/td[2]/div/div/h3/div
-#//*[@id="folder-row-5"]/td[2]/div/div/h3/div
-# 이 라인대로 0xxx 1xxx 20xxx ... 이렇게 눌러서 크롤링을 해야됨 
-
-#이게 차례대로 0001, 0002, 0003.json 파일의 xpath
-#//*[@id=":r2k:"]/span/span
-#//*[@id=":r2n:"]/span/span
-#//*[@id=":r2q:"]/span/span
-
-
-# step 3
-#//*[@id="repos-sticky-header"]/div[1]/div[2]/div[2]/div[1]/div[1]/span/button/svg
-# 이게 파일 다운로드 버튼 XPATH 
-# //*[@id="repo-content-pjax-container"]/react-app/div/div/div[1]/div/div/main/div[2]/div/div[1]/div/div[1]/div/div[1]/h2/button[1]/span
-# 이게 뒤로가기 버튼
-
 
 import os
 import time
@@ -172,7 +234,7 @@ while True:
                     print(f"파일 다운로드 버튼을 찾을 수 없습니다: {file_name}")
                 
                 # 다운로드한 파일을 디렉토리에 이동 및 이름 변경
-                time.sleep(5)  # 다운로드가 완료될 때까지 대기
+                time.sleep(5)  
                 downloaded_file_name = max([os.path.join(output_directory, f) for f in os.listdir(output_directory)], key=os.path.getctime)
                 new_file_name = os.path.join(output_directory, file_name)
                 os.rename(downloaded_file_name, new_file_name)
@@ -182,16 +244,15 @@ while True:
                 # 결과 DataFrame에 추가
                 crawled_data.append({'File Name': file_name, 'Content': new_file_name})
         
-        # "Load more" 버튼이 있는지 확인하여 클릭
-        load_more_button = driver.find_element(By.PARTIAL_LINK_TEXT, 'Load more')
-        load_more_button.click()
+        more_button = driver.find_element(By.PARTIAL_LINK_TEXT, 'Load more')
+        more_button.click()
         time.sleep(2)  
         
     except NoSuchElementException:
-        print("더 이상 파일이 없거나 페이지 로딩이 완료되었습니다.")
+        print("파일없다")
         break
     except TimeoutException:
-        print("페이지 로딩이 타임아웃 되었습니다.")
+        print("타임아웃")
 
 result_df = pd.DataFrame(crawled_data)
 
@@ -245,7 +306,7 @@ while True:
             if file_name.endswith('.json'):
                 # 파일 다운로드를 위해 해당 파일 페이지로 이동
                 driver.get('https://github.com' + file_url)
-                time.sleep(2)  # 페이지 로딩을 기다림
+                time.sleep(2)  
                 
                 # 파일 다운로드 버튼을 찾아 클릭
                 try:
@@ -265,9 +326,8 @@ while True:
                 # 결과 리스트에 추가
                 crawled_data.append({'File Name': file_name, 'Content': new_file_name})
         
-        # "Load more" 버튼이 있는지 확인하여 클릭
-        load_more_button = driver.find_element(By.PARTIAL_LINK_TEXT, 'Load more')
-        load_more_button.click()
+        more_button = driver.find_element(By.PARTIAL_LINK_TEXT, 'Load more')
+        more_button.click()
         time.sleep(2)  # 페이지 로딩을 기다림
         
     except NoSuchElementException:
@@ -285,70 +345,6 @@ print(f"{result_excel_file}에 저장 완료")
 
 
 # 크롬 드라이버 종료
-driver.quit()
-
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.service import Service as ChromeService
-from selenium.webdriver.common.by import By
-import time
-from selenium.common.exceptions import StaleElementReferenceException
-
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
-
-import openpyxl
-
-wb = openpyxl.Workbook()
-ws = wb.active
-
-s = Service('/opt/homebrew/bin/chromedriver')
-driver = webdriver.Chrome(service=s)
-
-
-url = 'https://github.com/CVEProject/cvelistV5/tree/main/cves'
-
-driver.get(url)
-driver.maximize_window()
-driver.implicitly_wait(time_to_wait=5)
-
-year_element = driver.find_element(By.XPATH, '//*[@id="folder-row-25"]/td[2]/div/div/h3/div/a')
-year_element.click()
-try:
-    add_element = driver.find_element(By.XPATH, '//*[@id="folder-row-1"]/td[2]/div/div/h3/div/a')
-    add_element.click()
-except StaleElementReferenceException:
-    # 예외 처리: 요소가 더 이상 사용 가능하지 않을 때 다시 찾기
-    add_element = driver.find_element(By.XPATH, '//*[@id="folder-row-1"]/td[2]/div/div/h3/div/a')  # 다시 찾기
-    add_element.click()
-
-i = 1
-while True:
-    try:
-        path = """//*[@id="repo-content-pjax-container"]/react-app/div/div/div[1]/div/div/main/div[2]/div/div[3]"""
-        rows = driver.find_elements(By.XPATH,path)
-        for i in range(len(rows)):
-            row = rows[i]
-            # 페이지 소스 가져오기
-            page_source = driver.page_source
-
-            # 파일 이름과 내용 엑셀에 추가
-            ws.append([f'CVE_data_{i}', page_source])
-            print(f"Data saved for CVE_data_{i}")
-            
-            back_element_xpath = '//*[@id="repo-content-pjax-container"]/react-app/div/div/div[1]/div/div/main/div[2]/div/div[1]/div/div[1]/div/div[1]/h2/button[1]/span'
-            try:
-                next_element = driver.find_element(By.XPATH, back_element_xpath)
-                next_element.click()
-                time.sleep(2)
-                i += 1
-            except NoSuchElementException:
-                pass
-
-    except StaleElementReferenceException:
-        break
-
-
-wb.save("cve_data.xlsx")
 driver.quit()
 
 from selenium import webdriver
