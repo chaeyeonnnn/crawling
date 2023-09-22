@@ -9,7 +9,7 @@ from selenium.common.exceptions import StaleElementReferenceException
 import pandas as pd
 import json
 
-# Chrome 웹 드라이버를 실행
+# Chrome 웹 드라이버 실행
 s = Service('/opt/homebrew/bin/chromedriver')
 driver = webdriver.Chrome(service=s)
 driver.maximize_window()
