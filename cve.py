@@ -48,7 +48,7 @@ try:
             try:
                 json_data = json.loads(response.text)  # response를 text로
             except json.JSONDecodeError as e:
-                print(f"JSON 디코딩 오류: {str(e)}")
+                print(f"디코딩 오류: {str(e)}")
                 continue
 
             cve_number = json_data["CVE_data_meta"]["ID"]
@@ -59,11 +59,9 @@ try:
             df.to_csv("cve.csv", encoding='utf-8-sig') 
 
 except json.decoder.JSONDecodeError:
-    # JSON 디코딩 오류 처리
-    print("JSON decoding error. Response content:")
+    print("JSON decoding error")
     print(response.text)
 
-# 크롬 드라이버 종료
 driver.quit()
 
 
