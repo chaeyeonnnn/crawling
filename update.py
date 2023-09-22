@@ -1,5 +1,4 @@
 # 기존에 저장되어있던 파일과 실시간으로 크롤링한 데이터를 비교하여 업데이트된 데이터만 따로 파일로 새로 저장하는 코드 
-
 import openpyxl
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -9,8 +8,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
 
-# 매주 월요일마다 수정된 부분 있으면 그 부분 알려줘야됨
-# 이전에 저장한 엑셀 파일을 열어서 이전 데이터 읽어
+# 매주 수정된 부분 있으면 그 부분 알려줘야됨
+# 이전에 저장한 엑셀 파일을 열어서 리스트에 넣음
 def previous_data(file_path):
     wb = openpyxl.load_workbook(file_path)
     ws = wb.active
@@ -33,7 +32,6 @@ def recent_data():
     driver.implicitly_wait(time_to_wait=5)
 
     due_date = 20230901
-
 
     while True:
         rows = driver.find_elements(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/table/tbody/tr')
@@ -99,14 +97,24 @@ def compare(previous_data, new_data):
 
 
 #바뀐 데이터만 새로 엑셀파일에 저장
-def save_updated_data(updated_data):
+def save_updated_data(previous_data, new_data):
+    updated_data = []
+    last_date = previous_data[-1][0] if previous_data else None
+
+    for new_row in new_data:
+        date = new_row[0]
+        date_time = int(date.replace("-", ""))
+        if last_date is None or date_time > int(last_date.replace("-", "")):
+            updated_data.append(new_row)
+
     if updated_data:
-        wb = openpyxl.Workbook()
+        wb = openpyxl.load_workbook("updated_data.xlsx")
         ws = wb.active
         ws.append(["DATE", "TITLE", "EDB-ID", "CVE", "TYPE", "CODE", "CATEGORY", "CHECK"])
 
         for row in updated_data:
             ws.append(row)
+
         wb.save("updated_data.xlsx")
         print("New updated data" )
 
