@@ -34,7 +34,7 @@ response = requests.get(year_url, headers=headers)
 
 try:
     data = response.json()
-    result_df = pd.DataFrame(columns=['File Name', 'Content'])
+    result_df = pd.DataFrame(columns=['File Name', 'Code'])
 
     for item in data:
         if item['type'] == 'file':
