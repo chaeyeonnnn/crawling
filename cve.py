@@ -46,13 +46,13 @@ try:
             response = requests.get(file_url, headers=headers)
 
             try:
-                json_data = json.loads(response.text)  # 수정: response를 text로 변환
+                json_data = json.loads(response.text)  # response를 text로
             except json.JSONDecodeError as e:
                 print(f"JSON 디코딩 오류: {str(e)}")
                 continue
 
             cve_number = json_data["CVE_data_meta"]["ID"]
-            csv_file_name = os.path.join("CVE_files", f"CVE-{year}-{cve_number}.csv")  # 수정: 확장자 변경
+            csv_file_name = os.path.join("CVE_files", f"CVE-{year}-{cve_number}.csv") 
             df = pd.json_normalize(json_data)
 
             # CSV 파일로 저장
