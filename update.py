@@ -1,4 +1,5 @@
 # 기존에 저장되어있던 파일과 실시간으로 크롤링한 데이터를 비교하여 업데이트된 데이터만 따로 파일로 새로 저장하는 코드 
+
 import openpyxl
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -7,6 +8,10 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
+import time
+from selenium.common.exceptions import StaleElementReferenceException
+import urllib3.exceptions
+import logging
 
 # 매주 수정된 부분 있으면 그 부분 알려줘야됨
 # 이전에 저장한 엑셀 파일을 열어서 리스트에 넣음
@@ -16,6 +21,7 @@ def previous_data(file_path):
     previous_data = []
     for row in ws.iter_rows(min_row=1, values_only=True):
         previous_data.append(row)
+    print(previous_data)
     return previous_data
 
 
@@ -33,50 +39,59 @@ def recent_data():
 
     due_date = 20230901
 
-    while True:
-        rows = driver.find_elements(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/table/tbody/tr')
+    while 1:
+        try:
+            rows = driver.find_elements(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/table/tbody/tr')
 
-        for i in range(len(rows)):
-            row = rows[i]
-            columns = row.find_elements(By.TAG_NAME, 'td')
-            date = columns[0].text
-            title = columns[4].text
-            platform = columns[6].text
-            check = 'O' if platform == "Python" or platform == "payload" else ''
-            date_time = int(date.replace("-",""))
+            for i in range(len(rows)):
+                row = rows[i]
+                columns = row.find_elements(By.TAG_NAME, 'td')
+                date = columns[0].text
+                title = columns[4].text
+                platform = columns[6].text
+                check = 'O' if platform == "Python" or platform == "payload" else ''
+                date_time = int(date.replace("-",""))
 
-            if due_date < date_time:
-                link = columns[4].find_element(By.TAG_NAME, 'a')
-                link.click()
+                if due_date < date_time:
+                    link = columns[4].find_element(By.TAG_NAME, 'a')
+                    link.click()
 
-                WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[1]/h6')))
+                    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[1]/h6')))
 
-                #eb_id, cve, code는 title 누르고 들어가서 내용 따로 크롤링해서 다시 뒤로가기해서 다음 내용 뽑게
+                    #eb_id, cve, code는 title 누르고 들어가서 내용 따로 크롤링해서 다시 뒤로가기해서 다음 내용 뽑게
 
-                edb_id_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[1]/h6')
-                edb_id = edb_id_element.text
-                cve_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[2]/h6')
-                cve = cve_element.text
-                type_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[2]/div/div[1]/div/div/div/div[2]/h6/a')
-                type = type_element.text
-                code_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[2]/div[1]/div/pre/code')
-                code = code_element.text
-            
-                try:
-                    new_data.append([date, title, edb_id, cve, type, code, platform, check])
-                    driver.back()
+                    edb_id_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[1]/h6')
+                    edb_id = edb_id_element.text
+                    cve_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[2]/h6')
+                    cve = cve_element.text
+                    type_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[2]/div/div[1]/div/div/div/div[2]/h6/a')
+                    type = type_element.text
+                    code_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[2]/div[1]/div/pre/code')
+                    code = code_element.text
+                
+                    try:
+                        new_data.append([date, title, edb_id, cve, type, code, platform, check])
+                        driver.back()
 
-                except Exception as e:
-                    driver.back()
+                    except Exception as e:
+                        driver.back()
+                else:
+                    driver.quit()
+
+            next_button = driver.find_element(By.XPATH, '//*[@id="exploits-table_next"]/a')
+            if 'disabled' in next_button.get_attribute('class'):
+                break
             else:
-                driver.quit()
+                next_button.click()
+                time.sleep(3)
+                #WebDriverWait(driver, 10).until(EC.staleness_of(rows[0]))
 
-        next_button = driver.find_element(By.XPATH, '//*[@id="exploits-table_next"]/a')
-        if 'disabled' in next_button.get_attribute('class'):
-            break
-        else:
-            next_button.click()
-            WebDriverWait(driver, 10).until(EC.staleness_of(rows[0]))
+        except StaleElementReferenceException:
+                driver.back()
+
+        except urllib3.exceptions.MaxRetryError as e:
+            logging.error(f'MaxRetryError: {e}')
+            driver.back()
 
     driver.quit()
     return new_data
@@ -127,5 +142,3 @@ new_data_list = recent_data()
 updated_data_list = compare(previous_data_list, new_data_list)
 save_updated_data(updated_data_list)
 
-# urllib3.exceptions.MaxRetryError 왜 나는지 확인해보고 
-# 
