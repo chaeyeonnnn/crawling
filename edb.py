@@ -9,7 +9,6 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import StaleElementReferenceException
 import urllib3.exceptions
 
-
 from time import sleep
 import logging
 import datetime
@@ -20,11 +19,9 @@ from selenium import webdriver
 
 logging.basicConfig(filename='error.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
-
-def get_data(max_retries=3):
-    new_data = [] 
+def get_data():
+    new_data = []
     url = 'https://www.exploit-db.com/'
-
     #chrome_options = webdriver.ChromeOptions()
     #chrome_options.add_argument('--headless')  # 무허용 모드 활성화
 
@@ -35,18 +32,17 @@ def get_data(max_retries=3):
     driver.get(url)
     driver.maximize_window()
     driver.implicitly_wait(time_to_wait=5)
-    
+
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.append(["DATE", "TITLE", "EDB-ID", "CVE", "TYPE", "CODE", "CATEGORY", "CHECK"])
     due_date = 20230901
 
-    retries = 0  # 재시도 횟수 막아두기
-
-    while retries < max_retries:
+    while 1:
         try:
             rows = driver.find_elements(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/table/tbody/tr')
             for i in range(len(rows)):
+                time.sleep(2)
                 row = rows[i]
                 columns = row.find_elements(By.TAG_NAME, 'td')
                 date = columns[0].text
@@ -60,7 +56,6 @@ def get_data(max_retries=3):
                     link.click()
 
                     WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[1]/h6')))
-
                     #eb_id, cve, code는 title 누르고 들어가서 내용 따로 크롤링해서 다시 뒤로가기해서 다음 내용 뽑게
 
                     edb_id_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div[1]/div[1]/div/div[1]/div/div/div/div[1]/h6')
@@ -71,14 +66,16 @@ def get_data(max_retries=3):
                     type = type_element.text
                     code_element = driver.find_element(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[2]/div[1]/div/pre/code')
                     code = code_element.text
-                
-                    try:    
+
+                    try:
                         ws.append([date, title, edb_id, cve, type, code, platform, check])
                         driver.back()
                     except Exception:
                         driver.back()
 
                 else:
+                    print("finished")
+                    wb.save("exploit_data.xlsx")
                     driver.quit()
 
             next_button = driver.find_element(By.XPATH, '//*[@id="exploits-table_next"]/a')
@@ -86,18 +83,16 @@ def get_data(max_retries=3):
                 break
             else:
                 next_button.click()
-                WebDriverWait(driver, 10).until(EC.staleness_of(rows[0]))
+                time.sleep(3)
+                #WebDriverWait(driver, 10).until(EC.staleness_of(rows[0]))
 
         except StaleElementReferenceException:
                 driver.back()
-        
+
         except urllib3.exceptions.MaxRetryError as e:
             logging.error(f'MaxRetryError: {e}')
             driver.back()
-        
-        finally:
-            wb.save("exploit_data.xlsx")
-            driver.quit()
+
 
 get_data()
 
