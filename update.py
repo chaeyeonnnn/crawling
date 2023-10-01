@@ -15,13 +15,14 @@ import logging
 
 # 매주 수정된 부분 있으면 그 부분 알려줘야됨
 # 이전에 저장한 엑셀 파일을 열어서 리스트에 넣음
-def previous_data(file_path):
+def previous():
+    file_path = 'exploit_data.xlsx'
     wb = openpyxl.load_workbook(file_path)
     ws = wb.active
     previous_data = []
     for row in ws.iter_rows(min_row=1, values_only=True):
         previous_data.append(row)
-    #print(previous_data) --> 잘 출력되고있음
+    print(previous_data)
     return previous_data
 
 
@@ -37,9 +38,9 @@ def recent_data():
     driver.maximize_window()
     driver.implicitly_wait(time_to_wait=5)
 
-    due_date = 20230901
+    due_date = 20230824
 
-    while 1:
+    while True:
         try:
             rows = driver.find_elements(By.XPATH, '/html/body/div/div[2]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/table/tbody/tr')
 
@@ -76,43 +77,30 @@ def recent_data():
                         driver.back()
                 else:
                     print("new data 다 스크래핑 완료") #--> 여기도 지금 출력됨, recent_data()까진 실행되는중
-                    driver.quit()
+                    break
 
 
             next_button = driver.find_element(By.XPATH, '//*[@id="exploits-table_next"]/a')
             if 'disabled' in next_button.get_attribute('class'):
-                break
+               #driver.close()
+               #break
+               driver.quit()
             else:
                 next_button.click()
                 time.sleep(3)
                 #WebDriverWait(driver, 10).until(EC.staleness_of(rows[0]))
 
         except StaleElementReferenceException:
-                driver.back()
+            driver.back()
 
         except urllib3.exceptions.MaxRetryError as e:
             logging.error(f'MaxRetryError: {e}')
             driver.back()
-    return new_data
+
+        return new_data
 
 #new_data까지 출력 잘 됨 지금
 
-            
-    
-'''
-# 기존에 저장된 파일이랑 새로 크롤링한거 비교하는 함수인데 굳이 필요 없을듯
-def compare(previous_data, new_data):
-    updated_data=[]
-    for new_row in new_data:
-        found = False
-        for prev_row in previous_data:
-            if new_row == prev_row:  # 코드 열 비교
-                found = True
-                continue
-        if not found:
-            updated_data.append(new_row)
-    return updated_data
-'''
 
 #바뀐 데이터만 새로 엑셀파일에 저장
 def save_updated_data(previous_data, new_data):
@@ -122,8 +110,9 @@ def save_updated_data(previous_data, new_data):
     for new_date in new_data:
         date = new_date[0]
         date_time = int(date.replace("-", ""))
-        if last_date is None or date_time > int(last_date.replace("-", "")):
-            updated_data.append(new_date)
+        if last_date is None or date_time >= int(last_date.replace("-", "")):
+            if all(new_date[1:] != prev_data[1:] for prev_data in previous_data):
+                updated_data.append(new_date)
 
     if updated_data:
         wb = openpyxl.Workbook()
@@ -140,13 +129,10 @@ def save_updated_data(previous_data, new_data):
     else:
         print("No updated data")
 
-data = 'exploit_data.xlsx'
-previous_data_list = previous_data(data)
-new_data_list = recent_data()
-#updated_data_list = save_updated_data(previous_data_list, new_data_list)
-#print(updated_data_list)
-save_updated_data(previous_data_list, new_data_list)
+#s = Service('/opt/homebrew/bin/chromedriver')
+#driver = webdriver.Chrome(service=s)
 
+save_updated_data(previous(), recent_data())
 
 '''
 import openpyxl
