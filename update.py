@@ -75,7 +75,7 @@ def recent_data():
                     except Exception:
                         driver.back()
                 else:
-                    print("new data 다 스크래핑 완료")
+                    print("new data 다 스크래핑 완료") #--> 여기도 지금 출력됨, recent_data()까진 실행되는중
                     driver.quit()
 
 
@@ -99,8 +99,8 @@ def recent_data():
 
             
     
-    
-# 기존에 저장된 파일이랑 새로 크롤링한거 비교
+'''
+# 기존에 저장된 파일이랑 새로 크롤링한거 비교하는 함수인데 굳이 필요 없을듯
 def compare(previous_data, new_data):
     updated_data=[]
     for new_row in new_data:
@@ -112,27 +112,28 @@ def compare(previous_data, new_data):
         if not found:
             updated_data.append(new_row)
     return updated_data
-
+'''
 
 #바뀐 데이터만 새로 엑셀파일에 저장
 def save_updated_data(previous_data, new_data):
     updated_data = []
     last_date = previous_data[-1][0] if previous_data else None
 
-    for new_row in new_data:
-        date = new_row[0]
+    for new_date in new_data:
+        date = new_date[0]
         date_time = int(date.replace("-", ""))
         if last_date is None or date_time > int(last_date.replace("-", "")):
-            updated_data.append(new_row)
+            updated_data.append(new_date)
 
     if updated_data:
-        wb = openpyxl.load_workbook("updated_data.xlsx")
+        wb = openpyxl.Workbook()
         ws = wb.active
+
         ws.append(["DATE", "TITLE", "EDB-ID", "CVE", "TYPE", "CODE", "CATEGORY", "CHECK"])
 
         for row in updated_data:
             ws.append(row)
-
+        
         wb.save("updated_data.xlsx")
         print("New updated data" )
 
@@ -142,10 +143,9 @@ def save_updated_data(previous_data, new_data):
 data = 'exploit_data.xlsx'
 previous_data_list = previous_data(data)
 new_data_list = recent_data()
-updated_data_list = compare(previous_data_list, new_data_list)
-save_updated_data(updated_data_list)
-
-
+#updated_data_list = save_updated_data(previous_data_list, new_data_list)
+#print(updated_data_list)
+save_updated_data(previous_data_list, new_data_list)
 
 
 '''
