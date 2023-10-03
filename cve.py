@@ -9,6 +9,75 @@ from selenium.common.exceptions import StaleElementReferenceException
 import pandas as pd
 import json
 
+# Chrome 웹 드라이버를 실행
+s = Service('/opt/homebrew/bin/chromedriver')
+driver = webdriver.Chrome(service=s)
+driver.maximize_window()
+time.sleep(10)
+
+# GitHub API 엔드포인트 및 토큰 설정
+base_url = 'https://api.github.com/repos/CVEProject/cvelistV5/contents/cves'
+token = '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'
+
+# 다운로드할 연도 설정
+year = 2023
+
+# 결과를 저장할 디렉토리 생성
+if not os.path.exists('CVE_files'):
+    os.makedirs('CVE_files')
+
+year_url = f'{base_url}{year:04d}'
+headers = {'Authorization': f'token {token}'}
+
+# 해당 연도의 폴더 내 파일 목록 가져오기
+response = requests.get(year_url, headers=headers)
+
+try:
+    data = response.json()
+    result_df = pd.DataFrame(columns=['File Name', 'Code'])
+
+    for item in data:
+        # 파일 URL 생성
+        file_url = item['download_url']
+        file_name = item['name']
+
+        # 파일 다운로드
+        response = requests.get(file_url, headers=headers)
+
+        try:
+            json_data = json.loads(response.text)  # response를 text로 변환
+        except json.JSONDecodeError as e:
+            print(f"JSON 디코딩 오류: {str(e)}")
+            continue
+
+        cve_number = json_data["CVE_data_meta"]["ID"]
+        csv_file_name = os.path.join("CVE_files", f"CVE-{year}-{cve_number}.csv")  # 수정: 확장자 변경
+        df = pd.json_normalize(json_data)
+
+        # CSV 파일로 저장
+        df.to_csv(csv_file_name, encoding='utf-8-sig') 
+
+except json.decoder.JSONDecodeError:
+    # JSON 디코딩 오류 처리
+    print("JSON decoding error. Response content:")
+    print(response.text)
+// 출력되는 데이터가 여기서 나오는 데이터
+
+# 크롬 드라이버 종료
+driver.quit()
+
+
+'''
+import requests
+import os
+import time
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from selenium.common.exceptions import StaleElementReferenceException
+import pandas as pd
+import json
+
 # Chrome 웹 드라이버 실행
 s = Service('/opt/homebrew/bin/chromedriver')
 driver = webdriver.Chrome(service=s)
@@ -68,7 +137,6 @@ driver.quit()
 
 
 
-'''
 
 # step 1
 #https://github.com/CVEProject/cvelistV5/tree/main/cves/2023
