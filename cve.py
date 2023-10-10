@@ -1,4 +1,96 @@
 
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.common.by import By
+import time
+from selenium.common.exceptions import StaleElementReferenceException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
+import openpyxl
+import os
+import csv
+import requests
+import logging
+
+logging.basicConfig(filename='cve_error.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
+
+csv_file_name = 'cve_data.csv'
+
+with open(csv_file_name, 'w', newline='', encoding='utf-8-sig') as csvfile:
+    csv_writer = csv.writer(csvfile)
+    csv_writer.writerow(['File Name', 'File Content'])  
+# 파일 토대 잡기, 이 밑에 row로 데이터 추가될 예정
+
+if not os.path.exists('cve_data_files'):
+    os.makedirs('cve_data_files')
+
+s = Service('/opt/homebrew/bin/chromedriver')
+driver = webdriver.Chrome(service=s)
+
+url = 'https://github.com/CVEProject/cvelistV5/tree/main/cves'
+
+driver.get(url)
+driver.maximize_window()
+time.sleep(5)
+
+year_element = driver.find_element(By.XPATH, '//*[@id="folder-row-25"]/td[2]/div/div/h3/div/a')
+year_element.click()
+
+try:
+    add_element = driver.find_element(By.XPATH, '//*[@id="folder-row-1"]/td[2]/div/div/h3/div/a')
+    add_element.click()
+
+except:
+    logging.error("에러메시지")
+    add_element = driver.find_element(By.XPATH, '//*[@id="folder-row-1"]/td[2]/div/div/h3/div/a')  # 다시 찾기
+    add_element.click()
+
+#여기까지 하면 0xxx에 까지 들어간거임
+
+
+i = 1
+while True:
+    try:
+        path = """//*[@id="repo-content-pjax-container"]/react-app/div/div/div[1]/div/div/main/div[2]/div/div[3]/div[3]/div/div/table"""
+        # 이게 0xxxx들어가면 쫙 나오는 목록 표 xpath
+     
+        rows = driver.find_elements(By.XPATH,path)
+        if i <len(rows):
+            row = rows[i]
+            link_element = row.find_element(By.TAG_NAME, 'a')
+            link_element.click()
+            time.sleep(2)
+
+            download_link = driver.find_element(By.XPATH, '//*[@id="repos-sticky-header"]/div[1]/div[2]/div[2]/div[1]/div[1]/span/a')
+            file_url = download_link.get_attribute('href')
+            response = requests.get(file_url)
+
+            file_name = 'CVE_data_' + str(i) + '.csv'
+            file_content = response.text
+            
+            with open(os.path.join('cve_data_files', file_name), 'w', newline='', encoding='utf-8-sig') as file:
+                file.write(file_content)
+            logging.info(f"파일 저장 완료: {file_name}")
+
+
+            with open(csv_file_name, 'a', newline='', encoding='utf-8-sig') as csvfile:
+                csv_writer = csv.writer(csvfile)
+                csv_writer.writerow([file_name, file_content])
+
+            print(f"save {file_name}")
+            
+            driver.back()
+            time.sleep(2)
+            i += 1
+        else:
+            break
+
+    except NoSuchElementException:
+        break 
+
+driver.quit()
+
+'''
 import requests
 import os
 import time
@@ -67,7 +159,6 @@ except json.decoder.JSONDecodeError:
 driver.quit()
 
 
-'''
 import requests
 import os
 import time
