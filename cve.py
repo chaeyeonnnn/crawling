@@ -1,3 +1,77 @@
+
+import json
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+import time
+import openpyxl
+from selenium.common.exceptions import NoSuchElementException
+import requests
+
+driver = webdriver.Chrome()
+url = 'https://github.com/CVEProject/cvelistV5/tree/main/cves'
+driver.get(url)
+driver.maximize_window()
+time.sleep(5)
+
+wb = openpyxl.Workbook()
+ws = wb.active
+ws.append(["파일 이름", '파일 내용'])
+
+rows = driver.find_elements(By.TAG_NAME, 'tr')
+num_rows = len(rows)
+
+for year_i in range(1, num_rows):
+    year_path = f'//*[@id="folder-row-{year_i}"]'
+    time.sleep(3)
+    year_row = driver.find_element(By.XPATH, year_path)
+    columns = year_row.find_elements(By.CLASS_NAME, 'react-directory-commit-age')
+    try:
+        for column in columns:
+            last_commit_date = column.text
+            parts = last_commit_date.split()
+
+            if parts[0].isdigit():
+                day = int(parts[0])
+                unit = parts[1]
+            else:
+                continue
+
+            if (day <= 6 and unit == "days") or unit == "hours" or unit == "minutes" or last_commit_date == "yesterday":
+                year_row.click()
+                print(f"{year_i + 1998} 누름")
+                time.sleep(5)
+
+                file_links = driver.find_elements(By.XPATH, '//*[@href]')
+                for link in file_links:
+                    file_url = link.get_attribute('href')
+                    if file_url.endswith('.json'):
+
+                        # 파일 다운로드
+                        response = requests.get(file_url)
+                        filename = file_url.split('/')[-1]
+                        with open(filename, 'wb') as file:
+                            file.write(response.content)
+
+                        with open(filename, 'r', encoding='utf-8') as json_file:
+                            json_data = json.load(json_file)
+                            content = json.dumps(json_data, indent=4)
+                            ws.append([filename, content])
+
+                driver.back()
+
+            else:
+                continue
+        wb.save("updated_cve_data.xlsx")
+
+    except NoSuchElementException:
+        driver.quit()
+        break
+
+driver.quit()
+
+'''
+
 import json
 import pandas as pd
 from selenium import webdriver
@@ -62,6 +136,7 @@ for year_i in range(1, num_rows):
                         row = name + data
                         ws.append(row)
                 '''
+                # last commit message눌려서 +- 자료 text로 그냥 긁어서 zip으로 해서 같이 저장하는 방법
                 for update_name, update_data in zip(update_names, update_datas):
                     ws.append([update_name.text,update_data.text])
                     print(update_name.text,update_data.text)
@@ -76,7 +151,7 @@ for year_i in range(1, num_rows):
         break
 
 
-'''
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 import time
