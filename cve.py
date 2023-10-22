@@ -1,3 +1,518 @@
+import json
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+import time
+import openpyxl
+from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+
+driver = webdriver.Chrome()
+url = 'https://github.com/CVEProject/cvelistV5/tree/main/cves'
+driver.get(url)
+driver.maximize_window()
+time.sleep(5)
+
+wb = openpyxl.Workbook()
+ws = wb.active
+ws.append(["파일이름",'파일 내용'])
+   
+
+rows = driver.find_elements(By.TAG_NAME, 'tr')
+num_rows = len(rows)
+
+#이게 연도 for문 ,, 제일 대빵
+for year_i in range(1, num_rows):
+    year_path = f'//*[@id="folder-row-{year_i}"]'
+    time.sleep(3)
+    year_row = driver.find_element(By.XPATH, year_path)
+    columns = year_row.find_elements(By.CLASS_NAME, 'react-directory-commit-age')
+    try:
+        # 연도 선택
+        for column in columns:
+            last_commit_date = column.text
+            parts = last_commit_date.split()
+
+            if parts[0].isdigit():
+                day = int(parts[0])
+                unit = parts[1]
+            else:
+                continue
+
+            if (day <= 6 and unit == "days") or unit == "hours" or unit == "minutes" or last_commit_date == "yesterday":
+                year_row.click()
+                print(f"{year_i + 1998} 누름")
+                time.sleep(5)
+
+                update_names = WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located((By.CLASS_NAME, 'Link--primary.Truncate-text')))
+                update_datas = WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located((By.CLASS_NAME, 'js-file-content.Details-content--hidden.position-relative'))
+        )
+                '''
+                #csv로 올릴때 따로 변환?
+                for update_name, update_data in zip(update_names, update_datas):
+                    json_name = json.loads(update_name.get_attribute('data-ga-click-data'))
+                    json_data = json.loads(update_data.get_attribute('data-ga-click-data'))
+
+                    name_values = [list(name.values()) for name in json_name]
+                    data_values = [list(data.values()) for data in json_data]
+
+                    for name, data in zip(name_values, data_values):
+                        row = name + data
+                        ws.append(row)
+                '''
+                for update_name, update_data in zip(update_names, update_datas):
+                    ws.append([update_name.text,update_data.text])
+                    print(update_name.text,update_data.text)
+                driver.back()
+
+            else:
+                continue
+        wb.save("updated_cve_data.xlsx") 
+
+    except NoSuchElementException:
+        driver.quit() 
+        break
+
+
+'''
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+import time
+import os
+import csv
+import logging
+from selenium.common.exceptions import NoSuchElementException
+
+
+logging.basicConfig(filename='cve_error.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
+
+csv_file_name = 'cve_data.csv'
+
+with open(csv_file_name, 'w', newline='', encoding='utf-8-sig') as csvfile:
+    csv_writer = csv.writer(csvfile)
+    csv_writer.writerow(['파일 이름', '파일 내용'])
+
+if not os.path.exists('cve_data_files'):
+    os.makedirs('cve_data_files')
+
+driver = webdriver.Chrome()
+
+url = 'https://github.com/CVEProject/cvelistV5/tree/main/cves'
+
+driver.get(url)
+driver.maximize_window()
+time.sleep(5)
+
+rows= driver.find_elements(By.TAG_NAME,'tr')
+num_rows = len(rows)
+#행의 개수
+
+#몇년에 들어감
+for year_i in range(num_rows):
+    year_path = f'//*[@id="folder-row-{year_i}"]'
+    year_row = driver.find_element(By.XPATH, year_path)
+    columns = year_row.find_elements(By.CLASS_NAME,'react-directory-commit-age')
+    for column in columns:
+        last_commit_date = column.text
+        parts = last_commit_date.split()
+
+        if parts[0].isdigit():
+            day = int(parts[0])
+            unit = parts[1]
+        else:
+            year_i += 1
+            continue
+
+        if (day <= 6 and unit == "days") or unit == "hours" or unit == "minutes" or last_commit_date == "yesterday":
+            year_row.click()
+            time.sleep(2)
+
+            for xxx_i in range(num_rows):
+                year_path = f'//*[@id="folder-row-{xxx_i}"]'
+                year_row = driver.find_element(By.XPATH, year_path)
+                columns = year_row.find_elements(By.CLASS_NAME,'react-directory-commit-age')
+                for column in columns:
+                    last_commit_date = column.text
+                    parts = last_commit_date.split()
+
+                    if parts[0].isdigit():
+                        day = int(parts[0])
+                        unit = parts[1]
+                    else:
+                        xxx_i += 1
+                        continue
+
+                    if (day <= 6 and unit == "days") or unit == "hours" or unit == "minutes" or last_commit_date == "yesterday":
+                        year_row.click()
+                        time.sleep(2)
+                        
+                        #~xxx의 json 파일들 훑어서 최근에 업데이트된 정보에 또 들어가
+                        for json_i in range(num_rows):
+                            year_path = f'//*[@id="folder-row-{json_i}"]'
+                            year_row = driver.find_element(By.XPATH, year_path)
+                            columns = year_row.find_elements(By.CLASS_NAME,'react-directory-commit-age')
+                            for column in columns:
+                                last_commit_date = column.text
+                                parts = last_commit_date.split()
+
+                                if parts[0].isdigit():
+                                    day = int(parts[0])
+                                    unit = parts[1]
+                                else:
+                                    json_i += 1
+                                    continue
+
+                                if (day <= 6 and unit == "days") or unit == "hours" or unit == "minutes" or last_commit_date == "yesterday":
+                                    year_row.click()
+                                    time.sleep(2)
+                                    download_button_xpath = '//*[@id="repos-sticky-header"]/div[1]/div[2]/div[2]/div[1]/div[1]/span/button/svg'
+                                    download_button = driver.find_element(By.XPATH, download_button_xpath)
+                                    download_button.click()
+
+                                    time.sleep(5)
+
+                                    downloaded_content = driver.page_source
+                                    file_name = f'download_data_{year_i}_{xxx_i}_{json_i}.csv'
+
+                                    with open(file_name, 'w', encoding='utf-8-sig') as csvfile:
+                                        csv_writer = csv.writer(csvfile)
+                                        csv_writer.writerow([file_name, downloaded_content])
+                                    logging.info(f"파일 저장 완료: {file_name}")
+                                    print(f"{file_name}을 저장했습니다.")
+
+                                else:
+                                    driver.back()
+                                    continue
+                    else:
+                        driver.back()
+                        continue
+        else:
+            driver.back()
+            continue
+
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+import time
+import os
+import csv
+import logging
+from selenium.common.exceptions import NoSuchElementException
+
+logging.basicConfig(filename='cve_error.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
+
+csv_file_name = 'cve_data.csv'
+
+with open(csv_file_name, 'w', newline='', encoding='utf-8-sig') as csvfile:
+    csv_writer = csv.writer(csvfile)
+    csv_writer.writerow(['파일 이름', '파일 내용'])
+
+if not os.path.exists('cve_data_files'):
+    os.makedirs('cve_data_files')
+
+driver = webdriver.Chrome()
+
+url = 'https://github.com/CVEProject/cvelistV5/tree/main/cves'
+
+driver.get(url)
+driver.maximize_window()
+time.sleep(5)
+
+def download_file(row, year_i, xxx_i, json_i):
+    row.click()
+    time.sleep(2)
+    download_button_xpath = '//*[@id="repos-sticky-header"]/div[1]/div[2]/div[2]/div[1]/div[1]/span/button/svg'
+    download_button = driver.find_element(By.XPATH, download_button_xpath)
+    download_button.click()
+    time.sleep(5)
+    downloaded_content = driver.page_source
+    file_name = f'download_data_{year_i}_{xxx_i}_{json_i}.csv'
+
+    with open(file_name, 'w', encoding='utf-8-sig') as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow([file_name, downloaded_content])
+    logging.info(f"파일 저장 완료: {file_name}")
+    print(f"{file_name}을 저장했습니다.")
+    driver.back()
+
+rows = driver.find_elements(By.TAG_NAME, 'tr')
+num_rows = len(rows)
+
+# Year 루프
+for year_i in range(num_rows):
+    year_path = f'//*[@id="folder-row-{year_i}"]'
+    year_row = driver.find_element(By.XPATH, year_path)
+    last_commit_date = year_row.find_element(By.CLASS_NAME, 'react-directory-commit-age').text
+    parts = last_commit_date.split()
+
+    if parts[0].isdigit():
+        day = int(parts[0])
+        unit = parts[1]
+    else:
+        year_i += 1
+        continue
+
+    if (day <= 6 and unit == "days") or unit == "hours" or unit == "minutes" or last_commit_date == "yesterday":
+        # xxx 루프
+        for xxx_i in range(num_rows):
+            xxx_row = driver.find_element(By.XPATH, f'//*[@id="folder-row-{xxx_i}"]')
+            last_commit_date = xxx_row.find_element(By.CLASS_NAME, 'react-directory-commit-age').text
+            parts = last_commit_date.split()
+            
+            if parts[0].isdigit():
+                day = int(parts[0])
+                unit = parts[1]
+            else:
+                xxx_i += 1
+                continue
+            
+            if (day <= 6 and unit == "days") or unit == "hours" or unit == "minutes" or last_commit_date == "yesterday":
+                # json 루프
+                for json_i in range(num_rows):
+                    json_row = driver.find_element(By.XPATH, f'//*[@id="folder-row-{json_i}"]')
+                    last_commit_date = json_row.find_element(By.CLASS_NAME, 'react-directory-commit-age').text
+                    parts = last_commit_date.split()
+
+                    if parts[0].isdigit():
+                        day = int(parts[0])
+                        unit = parts[1]
+                    else:
+                        json_i += 1
+                        continue
+
+                    if (day <= 6 and unit == "days") or unit == "hours" or unit == "minutes" or last_commit_date == "yesterday":
+                        download_file(json_row, year_i, xxx_i, json_i)
+                    else:
+                        driver.back()
+            else:
+                driver.back()
+    else:
+        driver.back()
+
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+import time
+import os
+import csv
+import logging
+from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+
+
+logging.basicConfig(filename='cve_error.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
+
+csv_file_name = 'cve_data.csv'
+
+with open(csv_file_name, 'w', newline='', encoding='utf-8-sig') as csvfile:
+    csv_writer = csv.writer(csvfile)
+    csv_writer.writerow(['파일 이름', '파일 내용'])
+
+if not os.path.exists('cve_data_files'):
+    os.makedirs('cve_data_files')
+
+driver = webdriver.Chrome()
+
+url = 'https://github.com/CVEProject/cvelistV5/tree/main/cves'
+
+driver.get(url)
+driver.maximize_window()
+time.sleep(5)
+
+rows= driver.find_elements(By.TAG_NAME,'tr')
+num_rows = len(rows)
+#행의 개수
+
+#몇년에 들어감
+for year_i in range(num_rows):
+    year_path = f'//*[@id="folder-row-{year_i}"]'
+    #year_button = f'//*[@id="folder-row-{year_i}"]/td[2]/div'
+    #year_button_row = driver.find_element(By.XPATH, year_button)
+
+    try:
+        time.sleep(3)
+        year_row = driver.find_element(By.XPATH, year_path)
+    except NoSuchElementException:
+        break
+    columns = year_row.find_elements(By.CLASS_NAME,'react-directory-commit-age')
+
+    #여기가 지금 년도별 last commit date 다 쫘르륵,, 
+    for column in columns:
+        last_commit_date = column.text
+        parts = last_commit_date.split()
+
+        if parts[0].isdigit():
+            day = int(parts[0])
+            unit = parts[1]
+        else:
+            continue
+
+        if (day <= 6 and unit == "days") or unit == "hours" or unit == "minutes" or last_commit_date == "yesterday":
+            year_row.click()
+            print(f"Clicked on year {year_i}")
+
+            time.sleep(30)
+
+            xxx_rows= driver.find_elements(By.TAG_NAME,'tr')
+            xxx_num_rows = len(xxx_rows)
+            for xxx_i in range(xxx_num_rows):
+                xxx_path = f'//*[@id="folder-row-{xxx_i}"]'
+                try:
+                    xxx_row = driver.find_element(By.XPATH, xxx_path)
+                except NoSuchElementException:
+                    continue
+                columns = xxx_row.find_elements(By.CLASS_NAME,'react-directory-commit-age')
+                for column in columns:
+                    last_commit_date = column.text
+                    parts = last_commit_date.split()
+
+                    if parts[0].isdigit():
+                        day = int(parts[0])
+                        unit = parts[1]
+                    else:
+                        continue
+
+                    if (day <= 6 and unit == "days") or unit == "hours" or unit == "minutes" or last_commit_date == "yesterday":
+                        xxx_row.click()
+                        print(f"Clicked on xxx {xxx_i}")
+
+                        time.sleep(10)
+
+                        json_rows= driver.find_elements(By.TAG_NAME,'tr')
+                        json_num_rows = len(json_rows)
+
+                        #~xxx의 json 파일들 훑어서 최근에 업데이트된 정보에 또 들어가
+                        for json_i in range(json_num_rows):
+                            json_path = f'//*[@id="folder-row-{json_i}"]'
+                            try:
+                                json_row = driver.find_element(By.XPATH, json_path)
+                            except NoSuchElementException:
+                                continue
+                            columns = json_row.find_elements(By.CLASS_NAME,'react-directory-commit-age')
+                            for column in columns:
+                                last_commit_date = column.text
+                                parts = last_commit_date.split()
+
+                                if parts[0].isdigit():
+                                    day = int(parts[0])
+                                    unit = parts[1]
+                                else:
+                                    continue
+
+                                if (day <= 6 and unit == "days") or unit == "hours" or unit == "minutes" or last_commit_date == "yesterday":
+                                    json_row.click()
+                                    print(f"Clicked on json {json_i}")
+
+                                    time.sleep(2)
+                                    download_button_xpath = '//*[@id="repos-sticky-header"]/div[1]/div[2]/div[2]/div[1]/div[1]/span/button/svg'
+                                    download_button = driver.find_element(By.XPATH, download_button_xpath)
+                                    download_button.click()
+
+                                    time.sleep(5)
+
+                                    downloaded_content = driver.page_source
+                                    file_name = f'download_data_{year_i}_{xxx_i}_{json_i}.csv'
+
+                                    with open(file_name, 'w', encoding='utf-8-sig') as csvfile:
+                                        csv_writer = csv.writer(csvfile)
+                                        csv_writer.writerow([file_name, downloaded_content])
+                                    logging.info(f"파일 저장 완료: {file_name}")
+                                    print(f"{file_name}을 저장했습니다.")
+
+                                else:
+                                    continue
+                    else:
+                        continue
+        else:
+            continue
+driver.quit()
+
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+import time
+import os
+import csv
+import logging
+from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import json
+
+logging.basicConfig(filename='cve_error.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
+
+csv_file_name = 'new_cve_data.csv'
+
+with open(csv_file_name, 'w', newline='', encoding='utf-8-sig') as csvfile:
+    csv_writer = csv.writer(csvfile)
+    csv_writer.writerow(['파일 이름', '파일 내용'])
+
+
+driver = webdriver.Chrome()
+
+url = 'https://github.com/CVEProject/cvelistV5/tree/main/cves'
+
+driver.get(url)
+driver.maximize_window()
+time.sleep(5)
+
+rows = driver.find_elements(By.TAG_NAME, 'tr')
+num_rows = len(rows)
+
+#이게 연도 for문 ,, 제일 대빵
+for year_i in range(1,num_rows):
+    year_path = f'//*[@id="folder-row-{year_i}"]'
+    time.sleep(3)
+    year_row = driver.find_element(By.XPATH, year_path)
+    columns = year_row.find_elements(By.CLASS_NAME, 'react-directory-commit-age')
+    
+    #여기에서 이제 날짜 보고 클릭할 연도 고르기
+    for column in columns: #column이 날짜야
+        last_commit_date = column.text
+        parts = last_commit_date.split()
+
+        if parts[0].isdigit():
+            day = int(parts[0])
+            unit = parts[1]
+        else:
+            continue
+
+        if (day <= 6 and unit == "days") or unit == "hours" or unit == "minutes" or last_commit_date == "yesterday":
+            year_row.click()
+            print(f"{year_i+1998} 누름!!!!!!!!!!!!!")
+            time.sleep(10)
+            
+            #pdate_names = driver.find_elements(By.CLASS_NAME, 'Link--primary.Truncate-text')
+            #update_datas = driver.find_elements(By.CLASS_NAME, 'js-file-content Details-content--hidden position-relative')
+            # name = update_name.get_attribute('data_blob')
+              #  if name:
+               #     name_object = json.loads(name)
+            
+            update_names = driver.find_elements(By.CLASS_NAME, 'Link--primary.Truncate-text')
+            update_datas = driver.find_elements(By.CLASS_NAME, 'js-file-content Details-content--hidden position-relative')
+
+
+            for update_name, update_data in zip(update_names, update_datas):
+                json_name = json.loads(update_name.get_attribute('data-ga-click-data'))
+                json_data = json.loads(update_data.get_attribute('data-ga-click-data'))
+
+                header = list(json_name[0].keys()) + list(json_data[0].keys())
+                
+                with open(csv_file_name, 'a', encoding='utf-8-sig', newline='') as csvfile:
+                    csv_writer = csv.writer(csvfile)
+                    csv_writer.writerow(header)
+
+                    for name, data in zip(json_name, json_data):
+                        row = list(name.values()) + list(data.values())
+                        csv_writer.writerow(row)
+                
+                driver.back()
+            
+        else:
+            continue
+
+driver.quit()
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -90,7 +605,7 @@ while True:
 
 driver.quit()
 
-'''
+
 import requests
 import os
 import time
